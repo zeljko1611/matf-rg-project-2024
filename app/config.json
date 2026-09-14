@@ -1,11 +1,23 @@
 {
   "resources": {
     "models": {
+      "formula": {
+        "path": "../model/ferrari-f1-2019/source/SF90.fbx",
+        "flip_uvs": false
+      },
+      "street_lights": {
+        "path": "../resources/textures/street_low_poly_street_lights_v3/street_low_poly_street_lights_v3.fbx",
+        "flip_uvs": false
+      },
+      "asphalt": {
+        "path": "../resources/textures/road--avenue--street/textures/road_Polygon_1_Roughness.png",
+        "flip_uvs": false
+      }
     }
   },
   "window": {
     "height": 600,
-    "title": "Hello, window!",
-    "width": 800
+    "title": "F1 Drag Race",
+    "width": 1280
   }
 }
