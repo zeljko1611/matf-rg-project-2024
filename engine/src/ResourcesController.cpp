@@ -129,9 +129,9 @@ namespace engine::resources
         }
 
     private:
-        void process_node(const aiNode* node);
+        void process_node(const aiNode* node, const aiMatrix4x4& parent_transform);
 
-        void process_mesh(aiMesh* mesh);
+        void process_mesh(aiMesh* mesh, const aiMatrix4x4& transform);
 
         std::vector<Texture*> process_materials(const aiMaterial* material);
 
@@ -157,8 +157,9 @@ namespace engine::resources
                     "No model ({}) specify in config.json. Please add the model to the config.json.", name);
                 throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
             }
-            std::filesystem::path model_path = m_models_path / std::filesystem::path(
-                config["resources"]["models"][name]["path"].get<std::string>());
+            std::filesystem::path model_path = (m_models_path /
+                    std::filesystem::path(config["resources"]["models"][name]["path"].get<std::string>())).
+                lexically_normal();
             Assimp::Importer importer;
             int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace;
             if (config["resources"]["models"][name].value<bool>("flip_uvs", false))
@@ -221,39 +222,44 @@ namespace engine::resources
     std::vector<Mesh> AssimpSceneProcessor::process_meshes()
     {
         m_meshes.clear();
-        process_node(m_scene->mRootNode);
+        process_node(m_scene->mRootNode, aiMatrix4x4());
         return std::move(m_meshes);
     }
 
-    void AssimpSceneProcessor::process_node(const aiNode* node)
+    void AssimpSceneProcessor::process_node(const aiNode* node, const aiMatrix4x4& parent_transform)
     {
+        const aiMatrix4x4 transform = parent_transform * node->mTransformation;
         for (uint32_t i = 0; i < node->mNumMeshes; ++i)
         {
             auto mesh = m_scene->mMeshes[node->mMeshes[i]];
-            process_mesh(mesh);
+            process_mesh(mesh, transform);
         }
         for (uint32_t i = 0; i < node->mNumChildren; ++i)
         {
-            process_node(node->mChildren[i]);
+            process_node(node->mChildren[i], transform);
         }
     }
 
-    void AssimpSceneProcessor::process_mesh(aiMesh* mesh)
+    void AssimpSceneProcessor::process_mesh(aiMesh* mesh, const aiMatrix4x4& transform)
     {
         std::vector<Vertex> vertices;
         vertices.reserve(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
         {
             Vertex vertex{};
-            vertex.Position.x = mesh->mVertices[i].x;
-            vertex.Position.y = mesh->mVertices[i].y;
-            vertex.Position.z = mesh->mVertices[i].z;
+            const aiVector3D position = transform * mesh->mVertices[i];
+            vertex.Position.x = position.x;
+            vertex.Position.y = position.y;
+            vertex.Position.z = position.z;
 
             if (mesh->HasNormals())
             {
-                vertex.Normal.x = mesh->mNormals[i].x;
-                vertex.Normal.y = mesh->mNormals[i].y;
-                vertex.Normal.z = mesh->mNormals[i].z;
+                aiMatrix3x3 normal_transform(transform);
+                normal_transform.Inverse().Transpose();
+                const aiVector3D normal = normal_transform * mesh->mNormals[i];
+                vertex.Normal.x = normal.x;
+                vertex.Normal.y = normal.y;
+                vertex.Normal.z = normal.z;
             }
 
             if (mesh->mTextureCoords[0])
@@ -293,8 +299,10 @@ namespace engine::resources
         std::vector<Texture*> textures;
         auto ai_texture_types = {
             aiTextureType_DIFFUSE,
+            aiTextureType_BASE_COLOR,
             aiTextureType_SPECULAR,
             aiTextureType_NORMALS,
+            aiTextureType_NORMAL_CAMERA,
             aiTextureType_HEIGHT,
         };
 
@@ -325,9 +333,11 @@ namespace engine::resources
         switch (type)
         {
         case aiTextureType_DIFFUSE: return TextureType::Diffuse;
+        case aiTextureType_BASE_COLOR: return TextureType::Diffuse;
         case aiTextureType_SPECULAR: return TextureType::Specular;
         case aiTextureType_HEIGHT: return TextureType::Height;
         case aiTextureType_NORMALS: return TextureType::Normal;
+        case aiTextureType_NORMAL_CAMERA: return TextureType::Normal;
         default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}",
                                           static_cast<int>(type));
         }
