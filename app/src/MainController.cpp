@@ -55,7 +55,8 @@ namespace app
 
     bool MainController::loop()
     {
-        return true;
+        return Controller::get<engine::platform::PlatformController>()
+               ->key(engine::platform::KEY_ESCAPE).is_up();
     }
 
     void MainController::poll_events()
@@ -152,26 +153,116 @@ namespace app
     void MainController::box(const Shader* s, glm::vec3 p, glm::vec3 scale, glm::vec3 col,
                              float emission, bool depth, int surface_mode) const
     {
+        glm::mat4 m(1);
+        m = glm::translate(m, p);
+        m = glm::scale(m, scale);
+        s->set_mat4("model", m);
+        s->set_int("surfaceMode", surface_mode);
+
+        if (!depth)
+        {
+            s->set_vec3("materialColor", col);
+            s->set_float("emissive", emission);
+        }
+
+        cubes.draw();
     }
 
     void MainController::formula(const Shader* s, bool d) const
     {
+        glm::mat4 m(1.f);
+        m = glm::translate(m, {car_x, -.19f, 0.f});
+        m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f});
+        m = glm::scale(m, {.01f, .01f, .01f});
+        s->set_mat4("model", m);
+        s->set_int("surfaceMode", 2);
+
+        if (!d)
+        {
+            s->set_vec3("materialColor", {.8f, .03f, .02f});
+            s->set_float("emissive", 0.f);
+            ferrari_texture->bind_to_unit(0);
+        }
+
+        formula_model->draw(s);
+        box(s, {car_x + 2.12f, .34f, -.44f}, {.055f, .035f, .075f}, {.75f, .87f, 1}, 9, d);
+        box(s, {car_x + 2.12f, .34f, .44f}, {.055f, .035f, .075f}, {.75f, .87f, 1}, 9, d);
+        headlights(s, d, .34f, .44f, 2.05f, 2.19f);
     }
 
     void MainController::headlights(const engine::resources::Shader* s, bool d, float height,
                                     float lateral_offset, float housing_x, float lens_x) const
     {
+        constexpr glm::vec3 housing_color{.045f, .05f, .065f};
+        constexpr glm::vec3 lens_color{.82f, .91f, 1.f};
+
+        for (float side : {-lateral_offset, lateral_offset})
+        {
+            box(s, {car_x + housing_x, height, side}, {.11f, .065f, .115f}, housing_color, 0.f, d);
+            box(s, {car_x + lens_x, height, side}, {.018f, .038f, .068f}, lens_color, 7.f, d);
+        }
     }
 
     void MainController::lamp(const engine::resources::Shader* s, float x, float z, bool d) const
     {
+        if (street_lights_model)
+        {
+            glm::mat4 m(1.f);
+            m = glm::translate(m, {x, -.1f, z});
+            m = glm::rotate(m, glm::radians(z > 0.f ? 180.f : 0.f), {0.f, 1.f, 0.f});
+            m = glm::scale(m, {1.65f, 1.65f, 1.65f});
+            m = glm::translate(m, {1.2895f, -.0068f, 2.6153f});
+            s->set_mat4("model", m);
+            s->set_int("surfaceMode", 3);
+
+            if (!d)
+            {
+                s->set_vec3("materialColor", {.08f, .08f, .08f});
+                s->set_float("emissive", 0.f);
+            }
+
+            street_lights_model->draw_range(s, 12, 1);
+            s->set_int("surfaceMode", 0);
+
+            if (!d)
+            {
+                s->set_vec3("materialColor", {1.f, .52f, .12f});
+                s->set_float("emissive", 2.5f);
+            }
+
+            street_lights_model->draw_range(s, 13, 1);
+        }
     }
 
     void MainController::asphalt(const engine::resources::Shader* s, bool d) const
     {
+        glm::mat4 m(1.f);
+        m = glm::translate(m, {0.f, -.095f, 0.f});
+        m = glm::scale(m, {30.f, 1.f, 6.f});
+        s->set_mat4("model", m);
+        s->set_int("surfaceMode", d ? 0 : 1);
+
+        if (!d)
+        {
+            s->set_vec3("materialColor", {.08f, .08f, .08f});
+            s->set_float("emissive", 0.f);
+        }
+
+        road.draw();
     }
 
     void MainController::scene(const engine::resources::Shader* s, bool d) const
     {
+        asphalt(s, d);
+        box(s, {0, .03f, -5.85f}, {30, .25f, .10f}, {.72f, .06f, .04f}, 0, d);
+        box(s, {0, .03f, 5.85f}, {30, .25f, .10f}, {.72f, .06f, .04f}, 0, d);
+
+        for (float x : {-18.f, -8.f, 2.f, 12.f, 22.f})
+        {
+            lamp(s, x, -5.3f, d);
+            lamp(s, x, 5.3f, d);
+        }
+
+        formula(s, d);
     }
 }
