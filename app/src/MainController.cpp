@@ -65,6 +65,25 @@ namespace app
 
     void MainController::update()
     {
+        const auto* p = Controller::get<engine::platform::PlatformController>();
+        camera(*p);
+
+        const float elapsed = p->frame_time().current - action;
+        if (race == Race::Countdown && elapsed >= 2.f)
+        {
+            race = Race::Racing;
+            spdlog::info("EVENT A: car accelerates.");
+        }
+
+        if (race == Race::Racing)
+        {
+            car_x += 5.2f * p->dt();
+            if (elapsed >= 6.f)
+            {
+                race = Race::Safety;
+                spdlog::info("EVENT B: car stops.");
+            }
+        }
     }
 
     void MainController::begin_draw()
@@ -136,6 +155,10 @@ namespace app
 
     void MainController::terminate()
     {
+        shadow.destroy();
+        bloom.destroy();
+        cubes.destroy();
+        road.destroy();
     }
 
     void MainController::start()
@@ -148,6 +171,23 @@ namespace app
 
     void MainController::camera(const engine::platform::PlatformController& p)
     {
+        if (!captured)
+            return;
+
+        auto* c = Controller::get<engine::graphics::GraphicsController>()->camera();
+        float dt = p.dt();
+        if (p.key(engine::platform::KEY_W).is_down())
+            c->move_camera(engine::graphics::Camera::FORWARD, dt);
+        if (p.key(engine::platform::KEY_S).is_down())
+            c->move_camera(engine::graphics::Camera::BACKWARD, dt);
+        if (p.key(engine::platform::KEY_A).is_down())
+            c->move_camera(engine::graphics::Camera::LEFT, dt);
+        if (p.key(engine::platform::KEY_D).is_down())
+            c->move_camera(engine::graphics::Camera::RIGHT, dt);
+
+        auto m = p.mouse();
+        c->rotate_camera(m.dx, m.dy);
+        c->zoom(m.scroll);
     }
 
     void MainController::box(const Shader* s, glm::vec3 p, glm::vec3 scale, glm::vec3 col,
