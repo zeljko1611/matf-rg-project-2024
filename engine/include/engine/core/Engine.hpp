@@ -30,4 +30,7 @@
 #include <engine/resources/Skybox.hpp>
 #include <engine/resources/Texture.hpp>
 
+#include <engine/graphics/OpenGL.hpp>
+#include <engine/graphics/PlaneMesh.hpp>
+
 #endif//MATF_RG_PROJECT_ENGINE_HPP
