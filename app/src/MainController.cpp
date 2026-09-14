@@ -61,6 +61,25 @@ namespace app
 
     void MainController::poll_events()
     {
+        auto* p = Controller::get<engine::platform::PlatformController>();
+        auto press = [&](engine::platform::KeyId k)
+        {
+            return p->key(k).state() == engine::platform::Key::State::JustPressed;
+        };
+
+        if (press(engine::platform::KEY_SPACE)) start();
+        if (press(engine::platform::KEY_R)) reset();
+        if (press(engine::platform::KEY_Z)) cone = std::clamp(cone - 2.f, 10.f, 32.f);
+        if (press(engine::platform::KEY_X)) cone = std::clamp(cone + 2.f, 10.f, 32.f);
+        if (press(engine::platform::KEY_Q)) point_intensity = std::clamp(point_intensity - 0.2f, 0.f, 3.f);
+        if (press(engine::platform::KEY_E)) point_intensity = std::clamp(point_intensity + 0.2f, 0.f, 3.f);
+        if (press(engine::platform::KEY_B)) bloom_on = !bloom_on;
+
+        if (press(engine::platform::KEY_F1))
+        {
+            captured = !captured;
+            p->set_enable_cursor(!captured);
+        }
     }
 
     void MainController::update()
@@ -163,10 +182,17 @@ namespace app
 
     void MainController::start()
     {
+        action = Controller::get<engine::platform::PlatformController>()->frame_time().current;
+        race = Race::Countdown;
+        car_x = -10;
+        spdlog::info("ACTION: countdown started. The car moves after 2 seconds and stops after 6.");
     }
 
     void MainController::reset()
     {
+        race = Race::Waiting;
+        car_x = -10;
+        spdlog::info("Car reset to starting position.");
     }
 
     void MainController::camera(const engine::platform::PlatformController& p)
