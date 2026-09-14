@@ -33,5 +33,6 @@
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/graphics/PlaneMesh.hpp>
 #include <engine/graphics/BoxMesh.hpp>
+#include <engine/graphics/PointShadow.hpp>
 
 #endif//MATF_RG_PROJECT_ENGINE_HPP
