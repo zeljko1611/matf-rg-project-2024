@@ -1,5 +1,4 @@
 #include <GUIController.hpp>
 
-namespace app
-{
+namespace app {
 }
