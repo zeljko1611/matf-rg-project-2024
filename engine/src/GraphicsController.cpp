@@ -11,7 +11,6 @@
 #include <imgui_impl_opengl3.h>
 
 namespace engine::graphics {
-
 void GraphicsController::initialize() {
     const int opengl_initialized = gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     RG_GUARANTEE(opengl_initialized, "OpenGL failed to init!");
@@ -78,6 +77,8 @@ void GraphicsController::draw_skybox(const resources::Shader *shader, const reso
     shader->set_mat4("view", view);
     shader->set_mat4("projection", projection_matrix<>());
     CHECKED_GL_CALL(glDepthFunc, GL_LEQUAL);
+    // The camera is inside the cube, so its outward-facing triangles would otherwise be culled.
+    CHECKED_GL_CALL(glDisable, GL_CULL_FACE);
     CHECKED_GL_CALL(glBindVertexArray, skybox->vao());
     CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_CUBE_MAP, skybox->texture());
@@ -85,5 +86,6 @@ void GraphicsController::draw_skybox(const resources::Shader *shader, const reso
     CHECKED_GL_CALL(glBindVertexArray, 0);
     CHECKED_GL_CALL(glDepthFunc, GL_LESS);// set depth function back to default
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_CUBE_MAP, 0);
+    CHECKED_GL_CALL(glEnable, GL_CULL_FACE);
 }
 }// namespace engine::graphics

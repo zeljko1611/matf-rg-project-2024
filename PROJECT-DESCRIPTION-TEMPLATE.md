@@ -1,33 +1,46 @@
-# {NAME-OF-THE-PROJECT}
+# F1 Drag Race
 
-{INDEX} - {STUDENT-FULL-NAME}  
-{PROJECT DESCRIPTION}
+124/2023 - Zeljko Nikolic
+
+F1 Drag Race is a small 3D racing scene set at night. The project features a Formula 1 car, a
+track with street lights, a night skybox, and dynamic lighting and shadows to create a realistic
+nighttime atmosphere.
 
 ## Controls
 
-{BUTTON1} -> {ACTION1}  
-{BUTTON2} -> {ACTION2}  
-...  
-{BUTTONN} -> {ACTIONN}
+[W] -> Move camera forward
+[S] -> Move camera backward
+[A] -> Move camera left
+[D] -> Move camera right
+[F1] -> Toggle mouse camera control
+[SPACE] -> Start the race sequence
+[R] -> Reset the car to the starting position
+[Z] -> Decrease spotlight cone angle
+[X] -> Increase spotlight cone angle
+[Q] -> Decrease point light intensity
+[E] -> Increase point light intensity
+[B] -> Toggle bloom
+[ESC] -> Exit the application
 
 ## Features
 
 ### Fundamental:
 
-[ ] Model with lighting
-[ ] Two types of lighting with customizable colors and movement through GUI or ACTIONS
-[ ] {ACTION_X} --- AFTER_M_SECONDS---Triggers---> {EVENT_A} ---> AFTER_N_SECONDS---Triggers---> {EVENT_B}
+[X] Model with lighting
+[X] Two types of lighting with customizable colors and movement through GUI or ACTIONS
+[X] {ACTION_X} --- AFTER_M_SECONDS---Triggers---> {EVENT_A} ---> AFTER_N_SECONDS---Triggers---> {EVENT_B}
 
 ### Group A:
 
 [ ] Frame-buffers with post-processing   
 [ ] Off-screen Anti-Aliasing  
 [ ] Parallax Mapping
-[ ] Bloom with the use of HDR
+[X] Bloom with the use of HDR
 
 ### Group B:
+
 [ ] Deferred Shading  
-[ ] Point Shadows  
+[X] Point Shadows  
 [ ] SSAO
 
 ### Engine improvement:
@@ -36,12 +49,12 @@
 
 ## Models:
 
-[link1]   
-[link2]
+Formula 1 car - https://skfb.ly/oRWHR
+Street lights - https://skfb.ly/oORD8
 
 ## Textures
 
-[link1]  
-[link2]
+Road texture - https://skfb.ly/oPLV6
+Skybox pictures - https://drive.google.com/drive/folders/130JXuZAqmpzhYGFsPKeJxRDVmApGXKl1
 
 {OTHER-RESOURCES}

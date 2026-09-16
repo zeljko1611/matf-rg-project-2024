@@ -11,7 +11,6 @@
 #include <utility>
 
 namespace engine::resources {
-
 void ResourcesController::initialize() {
     load_shaders();
     load_models();
@@ -53,7 +52,8 @@ void ResourcesController::load_models() {
     }
     const auto &config = util::Configuration::config();
     if (!config.contains("resources") || !config["resources"].contains("models")) {
-        std::string msg = "No configuration for models in the config.json, please provide the resources config. See the example in the README.md";
+        std::string msg =
+                "No configuration for models in the config.json, please provide the resources config. See the example in the README.md";
         throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
     }
     for (const auto &model_entry: config["resources"]["models"].items()) {
@@ -67,7 +67,9 @@ void ResourcesController::load_textures() {
         return;
     }
     for (const auto &texture_entry: std::filesystem::directory_iterator(m_textures_path)) {
-        texture(texture_entry.path().stem().string(), texture_entry.path());
+        if (texture_entry.is_regular_file()) {
+            texture(texture_entry.path().stem().string(), texture_entry.path());
+        }
     }
 }
 
@@ -77,32 +79,35 @@ void ResourcesController::load_skyboxes() {
         return;
     }
     for (const auto &sky_boxes_entry: std::filesystem::directory_iterator(m_skyboxes_path)) {
-        skybox(sky_boxes_entry.path().stem().string(), sky_boxes_entry.path());
+        if (sky_boxes_entry.is_directory()) {
+            skybox(sky_boxes_entry.path().stem().string(), sky_boxes_entry.path());
+        }
     }
 }
 
 /**
- * @class AssimpSceneProcessor
- * @brief Processes the meshes in an Assimp scene.
- */
+     * @class AssimpSceneProcessor
+     * @brief Processes the meshes in an Assimp scene.
+     */
 class AssimpSceneProcessor {
 public:
     /**
-     * @brief Processes the meshes in the scene.
-     * @returns The meshes in the scene.
-     */
+         * @brief Processes the meshes in the scene.
+         * @returns The meshes in the scene.
+         */
     std::vector<Mesh> process_meshes();
 
-    explicit AssimpSceneProcessor(ResourcesController *resources_controller, const aiScene *scene, std::filesystem::path model_path)
+    explicit AssimpSceneProcessor(ResourcesController *resources_controller, const aiScene *scene,
+                                  std::filesystem::path model_path)
         : m_scene(scene)
         , m_model_path(std::move(model_path))
         , m_resources_controller(resources_controller) {
     }
 
 private:
-    void process_node(const aiNode *node);
+    void process_node(const aiNode *node, const aiMatrix4x4 &parent_transform);
 
-    void process_mesh(aiMesh *mesh);
+    void process_mesh(aiMesh *mesh, const aiMatrix4x4 &transform);
 
     std::vector<Texture *> process_materials(const aiMaterial *material);
 
@@ -121,10 +126,13 @@ Model *ResourcesController::model(const std::string &name) {
     if (!result) {
         auto &config = util::Configuration::config();
         if (!config["resources"]["models"].contains(name)) {
-            std::string msg = std::format("No model ({}) specify in config.json. Please add the model to the config.json.", name);
+            std::string msg = std::format(
+                    "No model ({}) specify in config.json. Please add the model to the config.json.", name);
             throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
         }
-        std::filesystem::path model_path = m_models_path / std::filesystem::path(config["resources"]["models"][name]["path"].get<std::string>());
+        std::filesystem::path model_path = (m_models_path /
+                                            std::filesystem::path(config["resources"]["models"][name]["path"].get<std::string>()))
+                                                   .lexically_normal();
         Assimp::Importer importer;
         int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace;
         if (config["resources"]["models"][name].value<bool>("flip_uvs", false)) {
@@ -134,7 +142,8 @@ Model *ResourcesController::model(const std::string &name) {
         spdlog::info("load_model(name={}, path={})", name, model_path.string());
         const aiScene *scene = importer.ReadFile(model_path, flags);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            std::string msg = std::format("Assimp error while reading model: {} from path {}.", model_path.string(), name);
+            std::string msg = std::format("Assimp error while reading model: {} from path {}.", model_path.string(),
+                                          name);
             throw util::EngineError(util::EngineError::Type::AssetLoadingError, msg);
         }
         AssimpSceneProcessor scene_processor(this, scene, model_path);
@@ -144,13 +153,30 @@ Model *ResourcesController::model(const std::string &name) {
     return result.get();
 }
 
-Texture *ResourcesController::texture(const std::string &name, const std::filesystem::path &path, TextureType type, bool flip_uvs) {
+Texture *ResourcesController::texture(const std::string &name, const std::filesystem::path &path, TextureType type,
+                                      bool flip_uvs) {
     auto &result = m_textures[name];
     if (!result) {
-        spdlog::info("load_texture(path={})", path.string());
-        auto texture = graphics::OpenGL::generate_texture(path, flip_uvs);
-        result = std::make_unique<Texture>(Texture(texture, type, path, path.stem()));
+        std::filesystem::path texture_path = path;
+        bool should_flip_uvs = flip_uvs;
+        if (texture_path.empty()) {
+            auto &config = util::Configuration::config();
+            if (!config["resources"]["textures"].contains(name)) {
+                std::string msg = std::format(
+                        "No texture ({}) specify in config.json. Please add the texture to the config.json.", name);
+                throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
+            }
+            texture_path = (m_textures_path /
+                            std::filesystem::path(config["resources"]["textures"][name]["path"].get<std::string>()))
+                                   .lexically_normal();
+            should_flip_uvs = config["resources"]["textures"][name].value<bool>("flip_uvs", false);
+        }
+
+        spdlog::info("load_texture(name={}, path={})", name, texture_path.string());
+        auto texture = graphics::OpenGL::generate_texture(texture_path, should_flip_uvs);
+        result = std::make_unique<Texture>(Texture(texture, type, texture_path, texture_path.stem()));
     }
+
     return result.get();
 }
 
@@ -176,33 +202,38 @@ Shader *ResourcesController::shader(const std::string &name, const std::filesyst
 
 std::vector<Mesh> AssimpSceneProcessor::process_meshes() {
     m_meshes.clear();
-    process_node(m_scene->mRootNode);
+    process_node(m_scene->mRootNode, aiMatrix4x4());
     return std::move(m_meshes);
 }
 
-void AssimpSceneProcessor::process_node(const aiNode *node) {
+void AssimpSceneProcessor::process_node(const aiNode *node, const aiMatrix4x4 &parent_transform) {
+    const aiMatrix4x4 transform = parent_transform * node->mTransformation;
     for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
         auto mesh = m_scene->mMeshes[node->mMeshes[i]];
-        process_mesh(mesh);
+        process_mesh(mesh, transform);
     }
     for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-        process_node(node->mChildren[i]);
+        process_node(node->mChildren[i], transform);
     }
 }
 
-void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
+void AssimpSceneProcessor::process_mesh(aiMesh *mesh, const aiMatrix4x4 &transform) {
     std::vector<Vertex> vertices;
     vertices.reserve(mesh->mNumVertices);
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
         Vertex vertex{};
-        vertex.Position.x = mesh->mVertices[i].x;
-        vertex.Position.y = mesh->mVertices[i].y;
-        vertex.Position.z = mesh->mVertices[i].z;
+        const aiVector3D position = transform * mesh->mVertices[i];
+        vertex.Position.x = position.x;
+        vertex.Position.y = position.y;
+        vertex.Position.z = position.z;
 
         if (mesh->HasNormals()) {
-            vertex.Normal.x = mesh->mNormals[i].x;
-            vertex.Normal.y = mesh->mNormals[i].y;
-            vertex.Normal.z = mesh->mNormals[i].z;
+            aiMatrix3x3 normal_transform(transform);
+            normal_transform.Inverse().Transpose();
+            const aiVector3D normal = normal_transform * mesh->mNormals[i];
+            vertex.Normal.x = normal.x;
+            vertex.Normal.y = normal.y;
+            vertex.Normal.z = normal.z;
         }
 
         if (mesh->mTextureCoords[0]) {
@@ -238,8 +269,10 @@ std::vector<Texture *> AssimpSceneProcessor::process_materials(const aiMaterial 
     std::vector<Texture *> textures;
     auto ai_texture_types = {
             aiTextureType_DIFFUSE,
+            aiTextureType_BASE_COLOR,
             aiTextureType_SPECULAR,
             aiTextureType_NORMALS,
+            aiTextureType_NORMAL_CAMERA,
             aiTextureType_HEIGHT,
     };
 
@@ -249,13 +282,15 @@ std::vector<Texture *> AssimpSceneProcessor::process_materials(const aiMaterial 
     return textures;
 }
 
-void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &textures, const aiMaterial *material, aiTextureType type) {
+void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &textures, const aiMaterial *material,
+                                                 aiTextureType type) {
     auto material_count = material->GetTextureCount(type);
     for (uint32_t i = 0; i < material_count; ++i) {
         aiString ai_texture_path_string;
         material->GetTexture(type, i, &ai_texture_path_string);
         std::filesystem::path texture_path = m_model_path.parent_path() / ai_texture_path_string.C_Str();
-        Texture *texture = m_resources_controller->texture(texture_path.string(), texture_path, assimp_texture_type_to_engine(type));
+        Texture *texture = m_resources_controller->texture(texture_path.string(), texture_path,
+                                                           assimp_texture_type_to_engine(type));
         textures.emplace_back(texture);
     }
 }
@@ -263,11 +298,13 @@ void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &texture
 TextureType AssimpSceneProcessor::assimp_texture_type_to_engine(aiTextureType type) {
     switch (type) {
         case aiTextureType_DIFFUSE: return TextureType::Diffuse;
+        case aiTextureType_BASE_COLOR: return TextureType::Diffuse;
         case aiTextureType_SPECULAR: return TextureType::Specular;
         case aiTextureType_HEIGHT: return TextureType::Height;
         case aiTextureType_NORMALS: return TextureType::Normal;
-        default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}", static_cast<int>(type));
+        case aiTextureType_NORMAL_CAMERA: return TextureType::Normal;
+        default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}",
+                                          static_cast<int>(type));
     }
 }
-
 }// namespace engine::resources

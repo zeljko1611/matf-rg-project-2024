@@ -177,6 +177,15 @@ void OpenGL::clear_buffers() {
     CHECKED_GL_CALL(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
+void OpenGL::enable_face_culling() {
+    CHECKED_GL_CALL(glEnable, GL_CULL_FACE);
+    CHECKED_GL_CALL(glCullFace, GL_BACK);
+}
+
+void OpenGL::set_clear_color(float red, float green, float blue, float alpha) {
+    CHECKED_GL_CALL(glClearColor, red, green, blue, alpha);
+}
+
 uint32_t face_index(std::string_view name) {
     if (name == "right") {
         return 0;
@@ -205,5 +214,4 @@ int32_t stbi_number_of_channels_to_gl_format(int32_t number_of_channels) {
         default: RG_SHOULD_NOT_REACH_HERE("Unknown channels {}", number_of_channels);
     }
 }
-
 };// namespace engine::graphics

@@ -26,6 +26,12 @@ void Texture::bind(int32_t sampler) {
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, m_id);
 }
 
+void Texture::bind_to_unit(uint32_t unit) {
+    RG_GUARANTEE(unit <= 31, "texture unit out of range");
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0 + unit);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, m_id);
+}
+
 std::string_view Texture::uniform_name_convention(TextureType type) {
     switch (type) {
         case TextureType::Diffuse: return "texture_diffuse";
