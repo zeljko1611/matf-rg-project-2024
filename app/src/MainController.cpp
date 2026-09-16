@@ -31,13 +31,9 @@ namespace app
         p->set_enable_cursor(false);
 
         auto* resources = Controller::get<engine::resources::ResourcesController>();
-        asphalt_texture = resources->texture(
-            "asphalt", "resources/textures/road--avenue--street/textures/road_Polygon_1_BaseColor.png");
-        ferrari_texture = resources->texture(
-            "ferrari_paint", "resources/model/ferrari-f1-2019/textures/SF90_Main_BaseColor.png");
-        street_lights_texture = resources->texture(
-            "street_lights_palette",
-            "resources/textures/street_low_poly_street_lights_v3/Palette256.png");
+        asphalt_texture = resources->texture("asphalt");
+        ferrari_texture = resources->texture("ferrari_paint");
+        street_lights_texture = resources->texture("street_lights_palette");
         formula_model = resources->model("formula");
         street_lights_model = resources->model("street_lights");
 

@@ -188,10 +188,28 @@ namespace engine::resources
         auto& result = m_textures[name];
         if (!result)
         {
-            spdlog::info("load_texture(path={})", path.string());
-            auto texture = graphics::OpenGL::generate_texture(path, flip_uvs);
-            result = std::make_unique<Texture>(Texture(texture, type, path, path.stem()));
+            std::filesystem::path texture_path = path;
+            bool should_flip_uvs = flip_uvs;
+            if (texture_path.empty())
+            {
+                auto& config = util::Configuration::config();
+                if (!config["resources"]["textures"].contains(name))
+                {
+                    std::string msg = std::format(
+                        "No texture ({}) specify in config.json. Please add the texture to the config.json.", name);
+                    throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
+                }
+                texture_path = (m_textures_path /
+                        std::filesystem::path(config["resources"]["textures"][name]["path"].get<std::string>())).
+                    lexically_normal();
+                should_flip_uvs = config["resources"]["textures"][name].value<bool>("flip_uvs", false);
+            }
+
+            spdlog::info("load_texture(name={}, path={})", name, texture_path.string());
+            auto texture = graphics::OpenGL::generate_texture(texture_path, should_flip_uvs);
+            result = std::make_unique<Texture>(Texture(texture, type, texture_path, texture_path.stem()));
         }
+
         return result.get();
     }
 
