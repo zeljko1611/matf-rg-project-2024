@@ -25,10 +25,10 @@ namespace app
         cubes.initialize();
         road.initialize();
 
-        auto* p = Controller::get<engine::platform::PlatformController>();
-        bloom.initialize(p->window()->width(), p->window()->height());
+        auto* platform_controller = Controller::get<engine::platform::PlatformController>();
+        bloom.initialize(platform_controller->window()->width(), platform_controller->window()->height());
         shadow.initialize();
-        p->set_enable_cursor(false);
+        platform_controller->set_enable_cursor(false);
 
         auto* resources = Controller::get<engine::resources::ResourcesController>();
         asphalt_texture = resources->texture("asphalt");
@@ -40,11 +40,11 @@ namespace app
 
         skybox = resources->skybox("night_sky", "resources/skyboxes/night_sky");
 
-        auto* c = Controller::get<engine::graphics::GraphicsController>()->camera();
-        c->Position = {11, 6.4f, 17};
-        c->Yaw = -127;
-        c->Pitch = -16;
-        c->rotate_camera(0, 0);
+        auto* camera = Controller::get<engine::graphics::GraphicsController>()->camera();
+        camera->Position = {11, 6.4f, 17};
+        camera->Yaw = -127;
+        camera->Pitch = -16;
+        camera->rotate_camera(0, 0);
 
         spdlog::info("F1 Drag Race ready: SPACE starts the two-stage event sequence.");
     }
@@ -57,10 +57,10 @@ namespace app
 
     void MainController::poll_events()
     {
-        auto* p = Controller::get<engine::platform::PlatformController>();
+        auto* platform_controller = Controller::get<engine::platform::PlatformController>();
         auto press = [&](engine::platform::KeyId k)
         {
-            return p->key(k).state() == engine::platform::Key::State::JustPressed;
+            return platform_controller->key(k).state() == engine::platform::Key::State::JustPressed;
         };
 
         if (press(engine::platform::KEY_SPACE)) start();
@@ -74,16 +74,16 @@ namespace app
         if (press(engine::platform::KEY_F1))
         {
             captured = !captured;
-            p->set_enable_cursor(!captured);
+            platform_controller->set_enable_cursor(!captured);
         }
     }
 
     void MainController::update()
     {
-        const auto* p = Controller::get<engine::platform::PlatformController>();
-        camera(*p);
+        const auto* platform_controller = Controller::get<engine::platform::PlatformController>();
+        camera(*platform_controller);
 
-        const float elapsed = p->frame_time().current - action;
+        const float elapsed = platform_controller->frame_time().current - action;
         if (race == Race::Countdown && elapsed >= 2.f)
         {
             race = Race::Racing;
@@ -92,7 +92,7 @@ namespace app
 
         if (race == Race::Racing)
         {
-            car_x += 5.2f * p->dt();
+            car_x += 5.2f * platform_controller->dt();
             if (elapsed >= 6.f)
             {
                 race = Race::Safety;
@@ -103,60 +103,60 @@ namespace app
 
     void MainController::begin_draw()
     {
-        auto* r = Controller::get<engine::resources::ResourcesController>();
-        auto* d = r->shader("point_shadow_depth");
+        auto* resources = Controller::get<engine::resources::ResourcesController>();
+        auto* shader = resources->shader("point_shadow_depth");
 
         shadow.begin_depth_pass(point_pos);
-        d->use();
+        shader->use();
         for (int i = 0; i < 6; ++i)
-            d->set_mat4("shadowMatrices[" + std::to_string(i) + "]", shadow.shadow_matrices()[i]);
-        d->set_vec3("lightPos", point_pos);
-        d->set_float("farPlane", shadow.far_plane());
-        scene(d, true);
+            shader->set_mat4("shadowMatrices[" + std::to_string(i) + "]", shadow.shadow_matrices()[i]);
+        shader->set_vec3("lightPos", point_pos);
+        shader->set_float("farPlane", shadow.far_plane());
+        scene(shader, true);
 
-        const auto* p = Controller::get<engine::platform::PlatformController>();
-        shadow.end_depth_pass(p->window()->width(), p->window()->height());
+        const auto* platform_controller = Controller::get<engine::platform::PlatformController>();
+        shadow.end_depth_pass(platform_controller->window()->width(), platform_controller->window()->height());
         bloom.begin_scene();
     }
 
     void MainController::draw()
     {
-        auto* r = Controller::get<engine::resources::ResourcesController>();
-        auto* s = r->shader("f1_scene");
-        auto* g = Controller::get<engine::graphics::GraphicsController>();
+        auto* resources = Controller::get<engine::resources::ResourcesController>();
+        auto* shader = resources->shader("f1_scene");
+        auto* graphics = Controller::get<engine::graphics::GraphicsController>();
 
         if (skybox)
-            g->draw_skybox(r->shader("skybox"), skybox);
+            graphics->draw_skybox(resources->shader("skybox"), skybox);
 
-        s->use();
-        s->set_mat4("projection", g->projection_matrix());
-        s->set_mat4("view", g->camera()->view_matrix());
-        s->set_vec3("viewPos", g->camera()->Position);
-        s->set_vec3("pointPosition", point_pos);
-        s->set_vec3("pointColor", {1.f, .72f, .35f});
-        s->set_float("pointIntensity", point_intensity);
-        s->set_vec3("spotPosition", {car_x + 2.19f, .35f, 0});
-        s->set_vec3("spotDirection", {1, -.07f, 0});
-        s->set_vec3("spotColor", {.76f, .86f, 1});
-        s->set_float("spotCutoff", glm::cos(glm::radians(cone)));
-        s->set_float("farPlane", shadow.far_plane());
-        s->set_int("depthMap", 4);
-        s->set_int("asphaltTexture", 2);
-        s->set_int("texture_diffuse1", 0);
-        s->set_int("streetLightsTexture", 3);
+        shader->use();
+        shader->set_mat4("projection", graphics->projection_matrix());
+        shader->set_mat4("view", graphics->camera()->view_matrix());
+        shader->set_vec3("viewPos", graphics->camera()->Position);
+        shader->set_vec3("pointPosition", point_pos);
+        shader->set_vec3("pointColor", {1.f, .72f, .35f});
+        shader->set_float("pointIntensity", point_intensity);
+        shader->set_vec3("spotPosition", {car_x + 2.19f, .35f, 0});
+        shader->set_vec3("spotDirection", {1, -.07f, 0});
+        shader->set_vec3("spotColor", {.76f, .86f, 1});
+        shader->set_float("spotCutoff", glm::cos(glm::radians(cone)));
+        shader->set_float("farPlane", shadow.far_plane());
+        shader->set_int("depthMap", 4);
+        shader->set_int("asphaltTexture", 2);
+        shader->set_int("texture_diffuse1", 0);
+        shader->set_int("streetLightsTexture", 3);
 
         asphalt_texture->bind_to_unit(2);
         street_lights_texture->bind_to_unit(3);
         shadow.bind(4);
-        scene(s, false);
+        scene(shader, false);
     }
 
 
     void MainController::end_draw()
     {
-        auto* r = Controller::get<engine::resources::ResourcesController>();
-        auto* blur = r->shader("bloom_blur");
-        auto* final = r->shader("bloom_final");
+        auto* resources = Controller::get<engine::resources::ResourcesController>();
+        auto* blur = resources->shader("bloom_blur");
+        auto* final = resources->shader("bloom_final");
 
         blur->use();
         blur->set_int("image", 0);
@@ -196,20 +196,20 @@ namespace app
         if (!captured)
             return;
 
-        auto* c = Controller::get<engine::graphics::GraphicsController>()->camera();
+        auto* camera = Controller::get<engine::graphics::GraphicsController>()->camera();
         float dt = p.dt();
         if (p.key(engine::platform::KEY_W).is_down())
-            c->move_camera(engine::graphics::Camera::FORWARD, dt);
+            camera->move_camera(engine::graphics::Camera::FORWARD, dt);
         if (p.key(engine::platform::KEY_S).is_down())
-            c->move_camera(engine::graphics::Camera::BACKWARD, dt);
+            camera->move_camera(engine::graphics::Camera::BACKWARD, dt);
         if (p.key(engine::platform::KEY_A).is_down())
-            c->move_camera(engine::graphics::Camera::LEFT, dt);
+            camera->move_camera(engine::graphics::Camera::LEFT, dt);
         if (p.key(engine::platform::KEY_D).is_down())
-            c->move_camera(engine::graphics::Camera::RIGHT, dt);
+            camera->move_camera(engine::graphics::Camera::RIGHT, dt);
 
         auto m = p.mouse();
-        c->rotate_camera(m.dx, m.dy);
-        c->zoom(m.scroll);
+        camera->rotate_camera(m.dx, m.dy);
+        camera->zoom(m.scroll);
     }
 
     void MainController::box(const Shader* s, glm::vec3 p, glm::vec3 scale, glm::vec3 col,
